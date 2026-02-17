@@ -80,15 +80,39 @@ GEN=ninja make
 ## Running the extension
 To run the extension code, simply start the shell with `./build/release/duckdb`. This shell will have the extension pre-loaded.  
 
-Now we can use the features from the extension directly in DuckDB. The template contains a single scalar function `quack()` that takes a string arguments and returns a string:
+This extension provides Slack search in DuckDB through the `search_slack(query)` table function.
+
+### 1) Set Slack credentials
+
+Create a Slack app/token with `search:read` scope, then export the token:
+
+```sh
+export SLACK_API_TOKEN="xoxb-...or-xoxp-..."
 ```
-D select quack('Jane') as result;
-┌───────────────┐
-│    result     │
-│    varchar    │
-├───────────────┤
-│ Quack Jane 🐥 │
-└───────────────┘
+
+### 2) Run a Slack search query
+
+```sql
+SELECT *
+FROM search_slack('incident status')
+LIMIT 10;
+```
+
+The function returns:
+
+- `text`
+- `channel`
+- `user`
+- `timestamp`
+- `permalink`
+
+### 3) Example analytics query
+
+```sql
+SELECT channel, count(*) AS matches
+FROM search_slack('deploy')
+GROUP BY channel
+ORDER BY matches DESC;
 ```
 
 ## Running the tests
