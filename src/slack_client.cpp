@@ -38,59 +38,60 @@ string SlackClient::SearchMessagesRaw(const string &query) {
 	// Get Slack token from environment variable
 	const char *token = getenv("SLACK_API_TOKEN");
 	if (!token || strlen(token) == 0) {
-		throw InvalidInputException("SLACK_API_TOKEN environment variable is not set. Please set it before using search_slack.");
+		throw InvalidInputException(
+		    "SLACK_API_TOKEN environment variable is not set. Please set it before using search_slack.");
 	}
-	
+
 	// Initialize curl
 	CURL *curl = curl_easy_init();
 	if (!curl) {
 		throw InternalException("Failed to initialize CURL");
 	}
-	
+
 	// Build URL with query parameter
 	char *encoded_query = curl_easy_escape(curl, query.c_str(), query.length());
 	if (!encoded_query) {
 		curl_easy_cleanup(curl);
 		throw InternalException("Failed to URL encode query");
 	}
-	
+
 	string url = "https://slack.com/api/search.messages?query=";
 	url += encoded_query;
 	url += "&count=10";
-	
+
 	curl_free(encoded_query);
-	
+
 	// Set authorization header
 	struct curl_slist *headers = nullptr;
 	string auth_header = "Authorization: Bearer ";
 	auth_header += token;
 	headers = curl_slist_append(headers, auth_header.c_str());
 	headers = curl_slist_append(headers, "Content-Type: application/json");
-	
+
 	string readBuffer;
 	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-	
+
 	CURLcode res = curl_easy_perform(curl);
-	
+
 	if (res != CURLE_OK) {
 		curl_slist_free_all(headers);
 		curl_easy_cleanup(curl);
 		throw IOException("CURL error: %s", curl_easy_strerror(res));
 	}
-	
+
 	long response_code;
 	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
-	
+
 	curl_slist_free_all(headers);
 	curl_easy_cleanup(curl);
-	
+
 	if (response_code != 200) {
 		throw IOException("Slack API returned error code: %ld. Response: %s", response_code, readBuffer.c_str());
 	}
-	
+
 	// Check if API returned an error in the JSON response
 	if (readBuffer.find("\"ok\":false") != string::npos) {
 		// Try to extract error message
@@ -100,7 +101,7 @@ string SlackClient::SearchMessagesRaw(const string &query) {
 		}
 		throw IOException("Slack API returned an error. Response: %s", readBuffer.c_str());
 	}
-	
+
 	return readBuffer;
 }
 
