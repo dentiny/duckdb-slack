@@ -18,7 +18,9 @@ namespace {
 using namespace duckdb_yyjson; // NOLINT
 
 // Parse JSON response from Slack API
-// Slack API returns: {"ok": true, "messages": {"matches": [{"iid": "...", "team": "...", "score": 0, "channel": {"id": "...", "name": "..."}, "type": "...", "user": "...", "username": "...", "ts": "...", "text": "...", "permalink": "...", "no_reactions": true}, ...]}}
+// Slack API returns: {"ok": true, "messages": {"matches": [{"iid": "...", "team": "...", "score": 0, "channel": {"id":
+// "...", "name": "..."}, "type": "...", "user": "...", "username": "...", "ts": "...", "text": "...", "permalink":
+// "...", "no_reactions": true}, ...]}}
 vector<vector<Value>> ParseSlackResponse(const string &json_response) {
 	vector<vector<Value>> results;
 
@@ -106,51 +108,50 @@ vector<vector<Value>> ParseSlackResponse(const string &json_response) {
 vector<vector<Value>> SearchSlack(const string &query) {
 	// Use the SlackClient to get raw JSON response
 	string json_response = SlackClient::SearchMessagesRaw(query);
-	
+
 	// Parse the response
 	return ParseSlackResponse(json_response);
 }
 
 unique_ptr<FunctionData> SlackSearchBind(ClientContext &context, TableFunctionBindInput &input,
-                                                vector<LogicalType> &return_types, vector<string> &names) {
+                                         vector<LogicalType> &return_types, vector<string> &names) {
 	if (input.inputs.empty() || input.inputs.size() > 1) {
 		throw BinderException("search_slack expects exactly one argument (search query)");
 	}
-	
+
 	if (input.inputs[0].IsNull()) {
 		throw BinderException("search_slack query cannot be NULL");
 	}
-	
+
 	string query = input.inputs[0].GetValue<string>();
-	
+
 	// Define return types and column names - simplified and user-friendly
 	return_types.push_back(LogicalType::VARCHAR); // iid
 	names.push_back("iid");
-	
+
 	return_types.push_back(LogicalType::VARCHAR); // channel_name
 	names.push_back("channel");
-	
+
 	return_types.push_back(LogicalType::VARCHAR); // username
 	names.push_back("username");
-	
+
 	return_types.push_back(LogicalType::TIMESTAMP); // timestamp (converted from Slack ts)
 	names.push_back("timestamp");
-	
+
 	return_types.push_back(LogicalType::VARCHAR); // text
 	names.push_back("text");
-	
+
 	return_types.push_back(LogicalType::VARCHAR); // permalink
 	names.push_back("permalink");
-	
+
 	return make_uniq<SlackSearchBindData>(query);
 }
 
-unique_ptr<LocalTableFunctionState> SlackSearchLocalInit(ExecutionContext &context,
-                                                                TableFunctionInitInput &input,
-                                                                GlobalTableFunctionState *global_state) {
+unique_ptr<LocalTableFunctionState> SlackSearchLocalInit(ExecutionContext &context, TableFunctionInitInput &input,
+                                                         GlobalTableFunctionState *global_state) {
 	auto &bind_data = input.bind_data->Cast<SlackSearchBindData>();
 	auto local_state = make_uniq<SlackSearchLocalState>();
-	
+
 	// Perform the search
 	try {
 		local_state->results = SearchSlack(bind_data.search_query);
@@ -158,33 +159,33 @@ unique_ptr<LocalTableFunctionState> SlackSearchLocalInit(ExecutionContext &conte
 	} catch (const std::exception &e) {
 		throw IOException("Failed to search Slack: %s", e.what());
 	}
-	
+
 	return std::move(local_state);
 }
 
 void SlackSearchFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
 	auto &state = data_p.local_state->Cast<SlackSearchLocalState>();
-	
+
 	if (!state.initialized || state.current_index >= state.results.size()) {
 		output.SetCardinality(0);
 		return;
 	}
-	
+
 	idx_t output_count = 0;
 	idx_t max_count = MinValue<idx_t>(STANDARD_VECTOR_SIZE, state.results.size() - state.current_index);
-	
+
 	for (idx_t i = 0; i < max_count; i++) {
 		if (state.current_index + i >= state.results.size()) {
 			break;
 		}
-		
+
 		auto &row = state.results[state.current_index + i];
 		for (idx_t col = 0; col < output.ColumnCount() && col < row.size(); col++) {
 			output.data[col].SetValue(output_count, row[col]);
 		}
 		output_count++;
 	}
-	
+
 	state.current_index += output_count;
 	output.SetCardinality(output_count);
 }
@@ -192,8 +193,8 @@ void SlackSearchFunction(ClientContext &context, TableFunctionInput &data_p, Dat
 } // namespace
 
 void RegisterSlackSearchFunction(ExtensionLoader &loader) {
-	TableFunction search_slack_function("search_slack", {LogicalType::VARCHAR}, SlackSearchFunction,
-	                                    SlackSearchBind, nullptr, SlackSearchLocalInit);
+	TableFunction search_slack_function("search_slack", {LogicalType::VARCHAR}, SlackSearchFunction, SlackSearchBind,
+	                                    nullptr, SlackSearchLocalInit);
 	loader.RegisterFunction(search_slack_function);
 }
 

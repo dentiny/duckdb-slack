@@ -12,10 +12,10 @@ class JsonUtils {
 public:
 	// Extract a string field from a JSON object
 	static string GetStringField(yyjson_val *obj, const char *field);
-	
+
 	// Extract a number field from a JSON object
 	static double GetNumberField(yyjson_val *obj, const char *field);
-	
+
 	// Extract a boolean field from a JSON object
 	static bool GetBoolField(yyjson_val *obj, const char *field);
 };
