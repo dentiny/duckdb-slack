@@ -1,6 +1,6 @@
 #define DUCKDB_EXTENSION_MAIN
 
-#include "quack_extension.hpp"
+#include "duckdb_slack_extension.hpp"
 
 #include "slack_search.hpp"
 #include "duckdb/common/exception.hpp"
@@ -15,16 +15,16 @@ void LoadInternal(ExtensionLoader &loader) {
 }
 } // namespace
 
-void QuackExtension::Load(ExtensionLoader &loader) {
+void DuckdbSlackExtension::Load(ExtensionLoader &loader) {
 	LoadInternal(loader);
 }
-std::string QuackExtension::Name() {
-	return "quack";
+std::string DuckdbSlackExtension::Name() {
+	return "duckdb_slack";
 }
 
-std::string QuackExtension::Version() const {
-#ifdef EXT_VERSION_QUACK
-	return EXT_VERSION_QUACK;
+std::string DuckdbSlackExtension::Version() const {
+#ifdef EXT_VERSION_DUCKDB_SLACK
+	return EXT_VERSION_DUCKDB_SLACK;
 #else
 	return "";
 #endif
@@ -34,7 +34,7 @@ std::string QuackExtension::Version() const {
 
 extern "C" {
 
-DUCKDB_CPP_EXTENSION_ENTRY(quack, loader) {
+DUCKDB_CPP_EXTENSION_ENTRY(duckdb_slack, loader) {
 	duckdb::LoadInternal(loader);
 }
 }
