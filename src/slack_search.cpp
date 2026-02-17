@@ -79,27 +79,27 @@ vector<vector<Value>> ParseSlackResponse(const string &json_response) {
 		Value timestamp_value;
 		if (!ts_str.empty()) {
 			try {
-				// Parse the timestamp string
-				double ts_double = std::stod(ts_str);
-				// Convert to microseconds (DuckDB's internal timestamp representation)
-				int64_t micros = static_cast<int64_t>(ts_double * 1000000);
+				const double ts_double = std::stod(ts_str);
+				const int64_t micros = static_cast<int64_t>(ts_double * 1000000);
 				timestamp_value = Value::TIMESTAMP(timestamp_t(micros));
 			} catch (...) {
-				// If parsing fails, use NULL
-				timestamp_value = Value(LogicalType::TIMESTAMP);
+                // If parsing fails, use NULL timestamp
+				timestamp_value = Value(LogicalType{LogicalTypeId::TIMESTAMP});
 			}
 		} else {
-			timestamp_value = Value(LogicalType::TIMESTAMP);
+			timestamp_value = Value(LogicalType{LogicalTypeId::TIMESTAMP});
 		}
 
 		vector<Value> row;
-		row.push_back(Value(iid));
-		row.push_back(Value(channel_name));
-		row.push_back(Value(username));
-		row.push_back(timestamp_value);
-		row.push_back(Value(text));
-		row.push_back(Value(permalink));
-		results.push_back(row);
+        row.reserve(6);
+		row.emplace_back(Value(iid));
+		row.emplace_back(Value(channel_name));
+		row.emplace_back(Value(username));
+		row.emplace_back(timestamp_value);
+		row.emplace_back(Value(text));
+		row.emplace_back(Value(permalink));
+
+		results.emplace_back(row);
 	}
 
 	return results;
@@ -124,22 +124,22 @@ unique_ptr<FunctionData> SlackSearchBind(ClientContext &context, TableFunctionBi
 
 	string query = input.inputs[0].GetValue<string>();
 
-	return_types.push_back(LogicalType::VARCHAR); // iid
+	return_types.push_back(LogicalType{LogicalTypeId::VARCHAR}); // iid
 	names.push_back("iid");
 
-	return_types.push_back(LogicalType::VARCHAR); // channel_name
+	return_types.push_back(LogicalType{LogicalTypeId::VARCHAR}); // channel_name
 	names.push_back("channel");
 
-	return_types.push_back(LogicalType::VARCHAR); // username
+	return_types.push_back(LogicalType{LogicalTypeId::VARCHAR}); // username
 	names.push_back("username");
 
-	return_types.push_back(LogicalType::TIMESTAMP); // timestamp (converted from Slack ts)
+	return_types.push_back(LogicalType{LogicalTypeId::TIMESTAMP}); // timestamp (converted from Slack ts)
 	names.push_back("timestamp");
 
-	return_types.push_back(LogicalType::VARCHAR); // text
+	return_types.push_back(LogicalType{LogicalTypeId::VARCHAR}); // text
 	names.push_back("text");
 
-	return_types.push_back(LogicalType::VARCHAR); // permalink
+	return_types.push_back(LogicalType{LogicalTypeId::VARCHAR}); // permalink
 	names.push_back("permalink");
 
 	return make_uniq<SlackSearchBindData>(query);
@@ -191,8 +191,8 @@ void SlackSearchFunction(ClientContext &context, TableFunctionInput &data_p, Dat
 } // namespace
 
 void RegisterSlackSearchFunction(ExtensionLoader &loader) {
-	TableFunction search_slack_function("search_slack", {LogicalType::VARCHAR}, SlackSearchFunction, SlackSearchBind,
-	                                    nullptr, SlackSearchLocalInit);
+	TableFunction search_slack_function("search_slack", {LogicalType{LogicalTypeId::VARCHAR}}, SlackSearchFunction,
+	                                    SlackSearchBind, nullptr, SlackSearchLocalInit);
 	loader.RegisterFunction(search_slack_function);
 }
 

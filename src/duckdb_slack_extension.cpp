@@ -2,9 +2,9 @@
 
 #include "duckdb_slack_extension.hpp"
 
-#include "slack_search.hpp"
 #include "duckdb/common/exception.hpp"
 #include "duckdb/function/scalar_function.hpp"
+#include "slack_search.hpp"
 
 namespace duckdb {
 
