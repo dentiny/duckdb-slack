@@ -83,15 +83,15 @@ vector<vector<Value>> ParseSlackResponse(const string &json_response) {
 				const int64_t micros = static_cast<int64_t>(ts_double * 1000000);
 				timestamp_value = Value::TIMESTAMP(timestamp_t(micros));
 			} catch (...) {
-                // If parsing fails, use NULL timestamp
-				timestamp_value = Value(LogicalType{LogicalTypeId::TIMESTAMP});
+				// If parsing fails, use NULL timestamp
+				timestamp_value = Value(LogicalType {LogicalTypeId::TIMESTAMP});
 			}
 		} else {
-			timestamp_value = Value(LogicalType{LogicalTypeId::TIMESTAMP});
+			timestamp_value = Value(LogicalType {LogicalTypeId::TIMESTAMP});
 		}
 
 		vector<Value> row;
-        row.reserve(6);
+		row.reserve(6);
 		row.emplace_back(Value(iid));
 		row.emplace_back(Value(channel_name));
 		row.emplace_back(Value(username));
@@ -124,22 +124,22 @@ unique_ptr<FunctionData> SlackSearchBind(ClientContext &context, TableFunctionBi
 
 	string query = input.inputs[0].GetValue<string>();
 
-	return_types.push_back(LogicalType{LogicalTypeId::VARCHAR}); // iid
+	return_types.push_back(LogicalType {LogicalTypeId::VARCHAR}); // iid
 	names.push_back("iid");
 
-	return_types.push_back(LogicalType{LogicalTypeId::VARCHAR}); // channel_name
+	return_types.push_back(LogicalType {LogicalTypeId::VARCHAR}); // channel_name
 	names.push_back("channel");
 
-	return_types.push_back(LogicalType{LogicalTypeId::VARCHAR}); // username
+	return_types.push_back(LogicalType {LogicalTypeId::VARCHAR}); // username
 	names.push_back("username");
 
-	return_types.push_back(LogicalType{LogicalTypeId::TIMESTAMP}); // timestamp (converted from Slack ts)
+	return_types.push_back(LogicalType {LogicalTypeId::TIMESTAMP}); // timestamp (converted from Slack ts)
 	names.push_back("timestamp");
 
-	return_types.push_back(LogicalType{LogicalTypeId::VARCHAR}); // text
+	return_types.push_back(LogicalType {LogicalTypeId::VARCHAR}); // text
 	names.push_back("text");
 
-	return_types.push_back(LogicalType{LogicalTypeId::VARCHAR}); // permalink
+	return_types.push_back(LogicalType {LogicalTypeId::VARCHAR}); // permalink
 	names.push_back("permalink");
 
 	return make_uniq<SlackSearchBindData>(query);
@@ -191,7 +191,7 @@ void SlackSearchFunction(ClientContext &context, TableFunctionInput &data_p, Dat
 } // namespace
 
 void RegisterSlackSearchFunction(ExtensionLoader &loader) {
-	TableFunction search_slack_function("search_slack", {LogicalType{LogicalTypeId::VARCHAR}}, SlackSearchFunction,
+	TableFunction search_slack_function("search_slack", {LogicalType {LogicalTypeId::VARCHAR}}, SlackSearchFunction,
 	                                    SlackSearchBind, nullptr, SlackSearchLocalInit);
 	loader.RegisterFunction(search_slack_function);
 }
