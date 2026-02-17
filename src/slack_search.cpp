@@ -1,4 +1,5 @@
 #include "slack_search.hpp"
+#include "scope_guard.hpp"
 
 #include "duckdb/function/table_function.hpp"
 #include "duckdb/common/string_util.hpp"
@@ -29,22 +30,22 @@ vector<vector<Value>> ParseSlackResponse(const string &json_response) {
 	if (!doc) {
 		throw IOException("Failed to parse Slack response JSON at byte %lld: %s", err.pos, err.msg);
 	}
+	SCOPE_EXIT {
+		yyjson_doc_free(doc);
+	};
 
 	auto *root = yyjson_doc_get_root(doc);
 	if (!root || !yyjson_is_obj(root)) {
-		yyjson_doc_free(doc);
 		return results;
 	}
 
 	auto *messages = yyjson_obj_get(root, "messages");
 	if (!messages || !yyjson_is_obj(messages)) {
-		yyjson_doc_free(doc);
 		return results;
 	}
 
 	auto *matches = yyjson_obj_get(messages, "matches");
 	if (!matches || !yyjson_is_arr(matches)) {
-		yyjson_doc_free(doc);
 		return results;
 	}
 
@@ -100,7 +101,6 @@ vector<vector<Value>> ParseSlackResponse(const string &json_response) {
 		results.push_back(row);
 	}
 
-	yyjson_doc_free(doc);
 	return results;
 }
 

@@ -1,4 +1,5 @@
 #include "slack_client.hpp"
+#include "scope_guard.hpp"
 
 #include "duckdb/common/exception.hpp"
 #include "json_utils.hpp"
@@ -27,11 +28,12 @@ string SlackClient::ExtractApiError(const string &json_response) {
 	if (!doc) {
 		return "";
 	}
+	SCOPE_EXIT {
+		yyjson_doc_free(doc);
+	};
 
 	auto *root = yyjson_doc_get_root(doc);
-	auto error = JsonUtils::GetStringField(root, "error");
-	yyjson_doc_free(doc);
-	return error;
+	return JsonUtils::GetStringField(root, "error");
 }
 
 string SlackClient::SearchMessagesRaw(const string &query) {
@@ -47,19 +49,22 @@ string SlackClient::SearchMessagesRaw(const string &query) {
 	if (!curl) {
 		throw InternalException("Failed to initialize CURL");
 	}
+	SCOPE_EXIT {
+		curl_easy_cleanup(curl);
+	};
 
 	// Build URL with query parameter
 	char *encoded_query = curl_easy_escape(curl, query.c_str(), query.length());
 	if (!encoded_query) {
-		curl_easy_cleanup(curl);
 		throw InternalException("Failed to URL encode query");
 	}
+	SCOPE_EXIT {
+		curl_free(encoded_query);
+	};
 
 	string url = "https://slack.com/api/search.messages?query=";
 	url += encoded_query;
 	url += "&count=10";
-
-	curl_free(encoded_query);
 
 	// Set authorization header
 	struct curl_slist *headers = nullptr;
@@ -67,6 +72,9 @@ string SlackClient::SearchMessagesRaw(const string &query) {
 	auth_header += token;
 	headers = curl_slist_append(headers, auth_header.c_str());
 	headers = curl_slist_append(headers, "Content-Type: application/json");
+	SCOPE_EXIT {
+		curl_slist_free_all(headers);
+	};
 
 	string readBuffer;
 	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -77,16 +85,11 @@ string SlackClient::SearchMessagesRaw(const string &query) {
 	CURLcode res = curl_easy_perform(curl);
 
 	if (res != CURLE_OK) {
-		curl_slist_free_all(headers);
-		curl_easy_cleanup(curl);
 		throw IOException("CURL error: %s", curl_easy_strerror(res));
 	}
 
 	long response_code;
 	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
-
-	curl_slist_free_all(headers);
-	curl_easy_cleanup(curl);
 
 	if (response_code != 200) {
 		throw IOException("Slack API returned error code: %ld. Response: %s", response_code, readBuffer.c_str());
