@@ -4,8 +4,9 @@
 #include "duckdb/function/table_function.hpp"
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/common/exception.hpp"
-#include "slack_client.hpp"
+#include "duckdb/logging/logger.hpp"
 #include "json_utils.hpp"
+#include "slack_client.hpp"
 #include "yyjson.hpp"
 
 #include <sstream>
@@ -105,11 +106,9 @@ vector<vector<Value>> ParseSlackResponse(const string &json_response) {
 }
 
 // Call Slack search API using the HTTP client
-vector<vector<Value>> SearchSlack(const string &query) {
-	// Use the SlackClient to get raw JSON response
+vector<vector<Value>> SearchSlack(ExecutionContext &context, const string &query) {
 	string json_response = SlackClient::SearchMessagesRaw(query);
-
-	// Parse the response
+	DUCKDB_LOG_DEBUG(context, "Slack API HTTP response: %s", json_response.c_str());
 	return ParseSlackResponse(json_response);
 }
 
@@ -125,7 +124,6 @@ unique_ptr<FunctionData> SlackSearchBind(ClientContext &context, TableFunctionBi
 
 	string query = input.inputs[0].GetValue<string>();
 
-	// Define return types and column names - simplified and user-friendly
 	return_types.push_back(LogicalType::VARCHAR); // iid
 	names.push_back("iid");
 
@@ -154,7 +152,7 @@ unique_ptr<LocalTableFunctionState> SlackSearchLocalInit(ExecutionContext &conte
 
 	// Perform the search
 	try {
-		local_state->results = SearchSlack(bind_data.search_query);
+		local_state->results = SearchSlack(context, bind_data.search_query);
 		local_state->initialized = true;
 	} catch (const std::exception &e) {
 		throw IOException("Failed to search Slack: %s", e.what());
